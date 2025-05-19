@@ -1,7 +1,7 @@
 from typing import Any, Optional
 from smolagents.tools import Tool
 
-class FinalAnswerTool(Tool):
+class MathOperationsTool(Tool):
     name = "math_operations"
     description = "Provides a simple tools to perform math operations like multiplication, addition, subtraction, division."
     inputs = {'answer': {'type': 'any', 'description': 'The final answer to the math problem'}}
