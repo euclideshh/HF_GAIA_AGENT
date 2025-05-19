@@ -11,12 +11,6 @@ class WikipediaSearchTool(Tool):
     def __init__(self, load_max_docs=2, **kwargs):
         super().__init__()
         self.load_max_docs = load_max_docs
-        try:
-            import wikipedia
-        except ImportError as e:
-            raise ImportError(
-                "You must install package `wikipedia-api` to run this tool: run `pip install wikipedia-api`."
-            ) from e
         self.is_initialized = True
 
     def forward(self, query: str) -> str:
