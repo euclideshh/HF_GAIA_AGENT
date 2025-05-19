@@ -14,8 +14,8 @@
   Thought: I will use math_operations tool to perform the division and square root operations.
   Code:
   ```py
-  division_result = math_tools.divide(1234, 56)
-  final_result = math_tools.square_root(division_result)
+  division_result = 1234/56
+  final_result = math.sqrt(division_result)
   final_answer(final_result)
   ```<end_code>
 
