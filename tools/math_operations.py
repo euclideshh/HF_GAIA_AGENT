@@ -1,5 +1,6 @@
 from typing import Any, Optional
 from smolagents.tools import Tool
+
 class FinalAnswerTool(Tool):
     name = "math_operations"
     description = "Provides a simple tools to perform math operations like multiplication, addition, subtraction, division."
@@ -45,3 +46,31 @@ class FinalAnswerTool(Tool):
         if b == 0:
             raise ValueError("Cannot divide by zero.")
         return a / b
+    
+    def modulus(a: int, b: int) -> int:
+        """Get the modulus of two numbers.
+        
+        Args:
+            a: first int
+            b: second int
+        """
+        return a % b
+    
+    def power(a: int, b: int) -> int:
+        """Raise a number to the power of another number.
+        
+        Args:
+            a: first int
+            b: second int
+        """
+        return a ** b
+    
+    def square_root(a: int) -> float:
+        """Get the square root of a number.
+        
+        Args:
+            a: first int
+        """
+        if a < 0:
+            raise ValueError("Cannot get square root of negative number.")
+        return a ** 0.5

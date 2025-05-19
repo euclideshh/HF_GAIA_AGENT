@@ -5,3 +5,8 @@ smolagents==1.13.0
 requests
 duckduckgo_search
 pandas
+langchain-community
+wikipedia-api
+arxiv
+faiss-cpu
+sentence-transformers
