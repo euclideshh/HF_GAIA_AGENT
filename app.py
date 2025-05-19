@@ -3,6 +3,8 @@ import gradio as gr
 import requests
 import inspect
 import pandas as pd
+from agent import agent
+import json
 
 # (Keep Constants as is)
 # --- Constants ---
@@ -12,12 +14,20 @@ DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
 # ----- THIS IS WERE YOU CAN BUILD WHAT YOU WANT ------
 class BasicAgent:
     def __init__(self):
-        print("BasicAgent initialized.")
+        print("Initializing BasicAgent with GAIA agent...")
+        self.agent = agent
+        
     def __call__(self, question: str) -> str:
-        print(f"Agent received question (first 50 chars): {question[:50]}...")
-        fixed_answer = "This is a default answer."
-        print(f"Agent returning fixed answer: {fixed_answer}")
-        return fixed_answer
+        print(f"Agent received question: {question}")
+        try:
+            # Call the agent with the question and get the response
+            response = self.agent.run(question)
+            print(response)
+            return response            
+        except Exception as e:
+            error_msg = f"Error processing question: {str(e)}"
+            print(error_msg)
+            return error_msg
 
 def run_and_submit_all( profile: gr.OAuthProfile | None):
     """
