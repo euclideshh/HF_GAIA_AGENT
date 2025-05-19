@@ -4,7 +4,7 @@ import requests
 import pytz
 import yaml
 from tools.final_answer import FinalAnswerTool
-from tools.math_operations import MathOperationsTool
+#from tools.math_operations import MathOperationsTool
 from tools.visit_webpage import VisitWebpageTool
 from tools.web_search import DuckDuckGoSearchTool
 from tools.wikipedia_search import WikipediaSearchTool
@@ -14,7 +14,7 @@ from tools.rag_search import RAGSearchTool
 # Custom tools 
 visit_webpage = VisitWebpageTool()
 internet_search = DuckDuckGoSearchTool(max_results=5)
-math_tools = MathOperationsTool()
+#math_tools = MathOperationsTool()
 final_answer = FinalAnswerTool()
 wikipedia_search = WikipediaSearchTool(load_max_docs=2)
 arxiv_search = ArxivSearchTool(load_max_docs=3)
@@ -32,12 +32,12 @@ model = HfApiModel(
     custom_role_conversions=None,
 )
 
-with open("prompts.yaml", 'r') as stream:
+with open("prompt.yaml", 'r') as stream:
     prompt_templates = yaml.safe_load(stream)
     
 agent = CodeAgent(
     model=model,
-    tools=[image_generation_tool, visit_webpage, internet_search, math_tools, wikipedia_search, arxiv_search, rag_search, final_answer], ## add your tools here (don't remove final answer)
+    tools=[image_generation_tool, visit_webpage, internet_search, wikipedia_search, arxiv_search, rag_search, final_answer], ## math_tools
     max_steps=6,
     verbosity_level=1,
     grammar=None,

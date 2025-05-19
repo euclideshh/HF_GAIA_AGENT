@@ -12,7 +12,7 @@ class RAGSearchTool(Tool):
     inputs = {
         'action': {'type': 'string', 'description': 'The action to perform: "add" to add documents, "search" to search existing documents, or "clear" to clear the database'},
         'content': {'type': 'string', 'description': 'For "add" action: the text content to add to the database. For "search" action: the query to search for. For "clear" action: can be empty.'},
-        'metadata': {'type': 'object', 'description': 'Optional metadata for the documents when adding them'}
+        'metadata': {'type': 'object', 'description': 'Optional metadata for the documents when adding them', 'nullable': True}
     }
     output_type = "string"
 
