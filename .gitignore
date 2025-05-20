@@ -1,0 +1,7 @@
+*.pdf
+*.xlsx
+*.csv
+*.docx
+*.pptx
+*.txt
+.env

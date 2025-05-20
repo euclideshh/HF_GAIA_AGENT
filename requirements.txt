@@ -8,5 +8,16 @@ pandas
 langchain-community
 wikipedia-api
 arxiv
+numpy
+pandas
+matplotlib
+Pillow
+pytesseract
+python-docx
+openpyxl
+tabula-py
+pdf2image
 faiss-cpu
 sentence-transformers
+pymupdf 
+beautifulsoup4
