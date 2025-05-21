@@ -60,7 +60,7 @@ tools = [
 
 additional_imports = [
     # Document processing
-    "PyMuPDF",                              # PDF reading
+    "pymupdf",                              # PDF reading
     # HTTP & URLs
     "requests",                             # HTTP client for REST calls :contentReference[oaicite:0]{index=0}
     "urllib.parse",                         # URL parsing and construction :contentReference[oaicite:1]{index=1}

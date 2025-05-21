@@ -12,7 +12,7 @@ class ArxivSearchTool(Tool):
         super().__init__()
         self.load_max_docs = load_max_docs
         try:
-            import arxiv
+            import arxiv            
         except ImportError as e:
             raise ImportError(
                 "You must install package `arxiv` to run this tool: run `pip install arxiv`."
@@ -20,6 +20,12 @@ class ArxivSearchTool(Tool):
         self.is_initialized = True
 
     def forward(self, query: str) -> str:
+        try:            
+            import pymupdf
+        except ImportError as e:
+            raise ImportError(
+                "You must install package `pymupdf` to run this tool: run `pip install pymupdf`."
+            ) from e        
         try:
             # Use ArxivLoader from langchain_community to load papers
             loader = ArxivLoader(
