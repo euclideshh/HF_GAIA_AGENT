@@ -10,6 +10,11 @@ import tabula
 from pdf2image import convert_from_path
 import json
 import shutil
+from typing import List
+from langchain_community.document_loaders import PDFPlumberLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+import pdfplumber
+import io
 
 class DocumentProcessingTool(Tool):
     name = "document_processing"
@@ -27,13 +32,24 @@ class DocumentProcessingTool(Tool):
         self.temp_dir = temp_dir
         os.makedirs(temp_dir, exist_ok=True)
         
+        # Check if running in HuggingFace space
+        self.is_hf_space = bool(os.getenv("SPACE_ID"))
+        
         try:
+            if self.is_hf_space:
+                from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+                self.processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten")
+                self.model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten")
             import pytesseract
             import pandas as pd
             import tabula
         except ImportError as e:
+            if self.is_hf_space:
+                required = "transformers torch Pillow python-docx openpyxl tabula-py pdf2image pandas"
+            else:
+                required = "pytesseract Pillow python-docx openpyxl tabula-py pdf2image pandas"
             raise ImportError(
-                "You must install required packages: pip install pytesseract Pillow python-docx openpyxl tabula-py pdf2image pandas"
+                f"You must install required packages: pip install {required}"
             ) from e
         
         self.is_initialized = True
@@ -78,7 +94,17 @@ class DocumentProcessingTool(Tool):
         """Extract text from image using OCR."""
         try:
             image = Image.open(filepath)
-            text = pytesseract.image_to_string(image)
+            
+            if self.is_hf_space:
+                # Use TrOCR in HuggingFace space
+                import torch
+                pixel_values = self.processor(image, return_tensors="pt").pixel_values
+                generated_ids = self.model.generate(pixel_values)
+                text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+            else:
+                # Use pytesseract locally
+                text = pytesseract.image_to_string(image)
+            
             return text.strip()
         except Exception as e:
             return f"Error performing OCR: {str(e)}"
@@ -100,29 +126,86 @@ class DocumentProcessingTool(Tool):
             result = self._analyze_dataframe(df, query)
             return json.dumps(result, indent=2)
         except Exception as e:
-            return f"Error analyzing Excel: {str(e)}"
-
+            return f"Error analyzing Excel: {str(e)}"    
+        
     def _analyze_pdf(self, filepath: str, query: str) -> str:
-        """Analyze PDF file and answer questions about it."""
+        """Analyze PDF file and answer questions about it using PDFPlumber and OCR."""
         try:
-            # Extract tables from PDF
-            tables = tabula.read_pdf(filepath, pages='all')
+            results = {
+                "text": [],
+                "tables": [],
+                "images": []
+            }
             
-            if not tables:
-                # If no tables found, try OCR
-                images = convert_from_path(filepath)
-                text = ""
-                for image in images:
-                    text += pytesseract.image_to_string(image) + "\n"
-                return text.strip()
+            # Use PDFPlumberLoader for initial text and table extraction
+            loader = PDFPlumberLoader(filepath)
+            pages = loader.load()
             
-            # If tables found, analyze them
-            results = []
-            for i, df in enumerate(tables):
-                result = self._analyze_dataframe(df, query)
-                results.append({f"Table {i+1}": result})
+            # Process each page with pdfplumber for detailed analysis
+            with pdfplumber.open(filepath) as pdf:
+                for i, page in enumerate(pdf.pages):
+                    # Extract text
+                    text = page.extract_text()
+                    if text:
+                        results["text"].append({
+                            "page": i + 1,
+                            "content": text
+                        })
+                    
+                    # Extract tables using pdfplumber's built-in table detection
+                    tables = page.extract_tables()
+                    if tables:
+                        for table_num, table in enumerate(tables):
+                            # Convert table to DataFrame for analysis
+                            df = pd.DataFrame(table[1:], columns=table[0] if table else None)
+                            analysis = self._analyze_dataframe(df, query)
+                            results["tables"].append({
+                                "page": i + 1,
+                                "table": table_num + 1,
+                                "analysis": analysis
+                            })
+                    
+                    # Extract and process images
+                    images = page.images
+                    if images:
+                        for img_num, img in enumerate(images):
+                            # Save image temporarily for OCR
+                            img_bytes = io.BytesIO(img["stream"].get_data())
+                            image = Image.open(img_bytes)
+                              # Perform OCR on the image using the appropriate method
+                            if self.is_hf_space:
+                                # Use TrOCR in HuggingFace space
+                                import torch
+                                pixel_values = self.processor(image, return_tensors="pt").pixel_values
+                                generated_ids = self.model.generate(pixel_values)
+                                text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+                            else:
+                                # Use pytesseract locally
+                                text = pytesseract.image_to_string(image)
+
+                            if text.strip():
+                                results["images"].append({
+                                    "page": i + 1,
+                                    "image": img_num + 1,
+                                    "bbox": img["bbox"],
+                                    "text": text.strip()
+                                })
             
-            return json.dumps(results, indent=2)
+            # Split text into chunks for better processing
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=100
+            )
+            
+            # Prepare final response based on query
+            if "table" in query.lower():
+                return json.dumps({"tables": results["tables"]}, indent=2)
+            elif "image" in query.lower():
+                return json.dumps({"images": results["images"]}, indent=2)
+            else:
+                # Return all results by default
+                return json.dumps(results, indent=2)
+                
         except Exception as e:
             return f"Error analyzing PDF: {str(e)}"
 

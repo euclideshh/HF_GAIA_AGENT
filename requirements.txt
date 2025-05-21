@@ -20,4 +20,9 @@ pdf2image
 faiss-cpu
 sentence-transformers
 pymupdf 
+fitz
 beautifulsoup4
+pdfplumber
+langchain-text-splitters
+transformers
+torch

@@ -13,6 +13,7 @@ from tools.rag_search import RAGSearchTool
 from tools.code_execution import CodeExecutionTool
 from tools.document_processing import DocumentProcessingTool
 from tools.image_processing import ImageProcessingTool
+from tools.web_scraping import WebScrapingTool
 
 # Custom tools 
 visit_webpage = VisitWebpageTool()
@@ -25,6 +26,7 @@ rag_search = RAGSearchTool(persist_dir="rag_db")
 code_execution = CodeExecutionTool()
 document_processing = DocumentProcessingTool(temp_dir="doc_processing")
 image_generation_tool = ImageProcessingTool()
+web_scraping = WebScrapingTool()
 
 # Import tool from Hub
 #image_generation_tool = load_tool("agents-course/text-to-image", trust_remote_code=True)
@@ -42,13 +44,14 @@ model = HfApiModel(
 with open("prompt.yaml", 'r') as stream:
     prompt_templates = yaml.safe_load(stream)
 
-tools = [
-    image_generation_tool, 
+tools = [    
     visit_webpage, 
     internet_search, 
+    math_tools,
     wikipedia_search, 
     arxiv_search,
-    rag_search, 
+    rag_search,
+    web_scraping,
     code_execution, 
     document_processing, 
     image_generation_tool,
