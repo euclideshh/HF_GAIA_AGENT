@@ -44,7 +44,7 @@ class RAGSearchTool(Tool):
         
         # Try to load existing database or create new one
         if os.path.exists(os.path.join(persist_dir, "index.faiss")):
-            self.db = FAISS.load_local(persist_dir, self.embeddings)
+            self.db = FAISS.load_local(persist_dir, self.embeddings, allow_dangerous_deserialization=True)
         else:
             self.db = None
         
