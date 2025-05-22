@@ -100,8 +100,9 @@ additional_imports = [
     
 agent = CodeAgent(
     model=model,
-    tools = tools, ## math_tools
+    tools = tools, 
     additional_authorized_imports = additional_imports,
-    prompt_templates=prompt_templates
+    prompt_templates=prompt_templates,
+    verbosity_level=0,
 )
 

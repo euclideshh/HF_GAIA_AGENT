@@ -39,6 +39,9 @@ class ArxivSearchTool(Tool):
             #logger.info("Check if pymupdf y fitz is installed...")        
             import pymupdf
             import fitz
+            # Monkey patch to manage fitz.fitz runtime error
+            if not hasattr(fitz, 'fitz'):
+                fitz.fitz = fitz
             #logger.info(f"Versión de fitz (PyMuPDF): {fitz.__doc__}")
             #logger.info(f"Ubicación del módulo fitz: {fitz.__file__}")
         except ImportError as e:
