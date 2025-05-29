@@ -23,6 +23,8 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # No hacer check de archivos faltantes
+          git config lfs.allowincompletepush true
           # Añadir el repositorio de Hugging Face como remoto
           git remote add hf https://USER_NAME:$HF_TOKEN@huggingface.co/spaces/EuclidesHernandez/HF_GAIA_AGENT
           
