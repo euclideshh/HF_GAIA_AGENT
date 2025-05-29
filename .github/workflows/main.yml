@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main  # O la rama que desees sincronizar
+    paths-ignore:
+      - 'rag_db/**'
 
 jobs:
   sync-to-huggingface:
