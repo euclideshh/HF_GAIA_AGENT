@@ -2,10 +2,10 @@ name: Sync to Hugging Face Space
 
 on:
   push:
+    paths-ignore:
+      - 'rag_db/**'  
     branches:
       - main  # O la rama que desees sincronizar
-    paths-ignore:
-      - 'rag_db/**'
 
 jobs:
   sync-to-huggingface:
@@ -24,9 +24,7 @@ jobs:
       - name: Push to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          # No hacer check de archivos faltantes
-          git config lfs.allowincompletepush true
+        run: |        
           # Añadir el repositorio de Hugging Face como remoto
           git remote add hf https://USER_NAME:$HF_TOKEN@huggingface.co/spaces/EuclidesHernandez/HF_GAIA_AGENT
           
