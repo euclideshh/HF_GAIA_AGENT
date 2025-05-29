@@ -40,7 +40,7 @@ model = HfApiModel(
     temperature=0,
     model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
     custom_role_conversions=None,
-)
+) 
 
 with open("prompt.yaml", 'r') as stream:
     prompt_templates = yaml.safe_load(stream)
