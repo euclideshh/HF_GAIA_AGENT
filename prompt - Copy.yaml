@@ -37,19 +37,9 @@
   print(papers)
   ```<end_code>
   Observation: Found several relevant papers discussing transformer architectures for time series.
-
-  Thought: Let me store this information in the RAG database for future reference.
-  Code:
-  ```py
-  rag_search.forward(
-      action="add",
-      content=papers,
-      metadata={"topic": "transformers", "subtopic": "time_series", "year": "2023"}
-  )
   summary = "Recent research in 2023 shows that transformers are effective for time series forecasting, with key improvements in..."
   final_answer(summary)
-  ```<end_code>
-
+  
   Task 2 - Data Analysis:
   "Calculate the total revenue growth between 2021 and 2022 from this financial report PDF."
 
@@ -189,14 +179,7 @@
   details = web_scraping.forward(
       url=web_results[0]["url"],
       action="text"
-    )
-  
-  # Store gathered information
-  rag_search.forward(
-      action="add",
-      content=details,
-      metadata={"paper": papers[0]["title"]}
-    )
+    )   
   
   final_answer("Based on the comprehensive analysis...")
   ```<end_code>
@@ -215,162 +198,82 @@
   print("Extracted text:", text)
   ```<end_code>
   Observation: Successfully extracted presentation text.
-
   Thought: Let's process and organize the information.
-  Code:
-  ```py
-  # Store the information for future reference
-  rag_search.forward(
-      action="add",
-      content=text,
-      metadata={"type": "presentation", "topic": "conference"}
-    )
-  
   summary = "The key points from the presentation are..."
   final_answer(summary)
-  ```<end_code>
-
   ---
 "planning":
   "initial_facts": |-
-    Below I will present you a task.
-    You will now build a comprehensive preparatory survey of which facts we have at our disposal and which ones we still need.
-    To do so, you will have to read the task and identify things that must be discovered in order to successfully complete it.
-    Don't make any assumptions. For each item, provide a thorough reasoning. Here is how you will structure this survey:
+    Extract the key elements from the task description, such as:
+    - Main topic or subject matter
+    - Specific entities, dates, or events mentioned
+    - Type of information required (e.g., definition, explanation, data retrieval)
+    - Any constraints or specific formats expected in the answer
 
-    ---
-    ### 1. Facts given in the task
-    List here the specific facts given in the task that could help you (there might be nothing here).
-
-    ### 2. Facts to look up
-    List here any facts that we may need to look up.
-    Also list where to find each of these, for instance a website, a file... - maybe the task contains some sources that you should re-use here.
-
-    ### 3. Facts to derive
-    List here anything that we want to derive from the above by logical reasoning, for instance computation or simulation.
-
-    Keep in mind that "facts" will typically be specific names, dates, values, etc. Your answer should use the below headings:
-    ### 1. Facts given in the task
-    ### 2. Facts to look up
-    ### 3. Facts to derive
-    Do not add anything else.
+    Present these facts in a clear and concise manner to inform the planning process.
   "initial_plan": |-
-    You are a world expert at making efficient plans to solve any task using a set of carefully crafted tools.
-    Now for the given task, develop a step-by-step high-level plan taking into account the above inputs and list of facts.
-    This plan should involve individual tasks based on the available tools, that if executed correctly will yield the correct answer.
-    Do not skip steps, do not add any superfluous steps. Only write the high-level plan, DO NOT DETAIL INDIVIDUAL TOOL CALLS.
-    After writing the final step of the plan, write the '\n<end_plan>' tag and stop there.
+    Based on the extracted facts and the available tools, devise a step-by-step plan to address the task. For example:
 
-    Here is your task:
+    1. **Understand the Question**: Analyze the task to determine what is being asked.
+    2. **Identify Relevant Tools**: Choose appropriate tools to gather or compute the necessary information.
+    3. **Gather Information**: Use the selected tools to retrieve data or perform computations.
+    4. **Process Data**: Analyze and interpret the gathered information to formulate an answer.
+    5. **Validate Answer**: Ensure the answer meets the requirements and is accurate.
+    6. **Present Final Answer**: Provide the answer in the specified format.
 
-    Task:
-    ```
-    {{task}}
-    ```
-    You can leverage these tools:
-    {%- for tool in tools.values() %}
-    - {{ tool.name }}: {{ tool.description }}
-        Takes inputs: {{tool.inputs}}
-        Returns an output of type: {{tool.output_type}}
-    {%- endfor %}
-
-    {%- if managed_agents and managed_agents.values() | list %}
-    You can also give tasks to team members.
-    Calling a team member works the same as for calling a tool: simply, the only argument you can give in the call is 'request', a long string explaining your request.
-    Given that this team member is a real human, you should be very verbose in your request.
-    Here is a list of the team members that you can call:
-    {%- for agent in managed_agents.values() %}
-    - {{ agent.name }}: {{ agent.description }}
-    {%- endfor %}
-    {%- else %}
-    {%- endif %}
-
-    List of facts that you know:
-    ```
-    {{answer_facts}}
-    ```
-
-    Now begin! Write your plan below.
+    Ensure that each step logically follows from the previous one and contributes to solving the task effectively.
   "update_facts_pre_messages": |-
-    You are a world expert at gathering known and unknown facts based on a conversation.
-    Below you will find a task, and a history of attempts made to solve the task. You will have to produce a list of these:
-    ### 1. Facts given in the task
-    ### 2. Facts that we have learned
-    ### 3. Facts still to look up
-    ### 4. Facts still to derive
-    Find the task and history below:
+    Review the progress made so far, including:
+    - Tools that have been used and their outputs
+    - Any new information or insights gained
+    - Steps that have been completed successfully
+
+    Summarize these updates to inform any necessary adjustments to the plan.
   "update_facts_post_messages": |-
-    Earlier we've built a list of facts.
-    But since in your previous steps you may have learned useful new facts or invalidated some false ones.
-    Please update your list of facts based on the previous history, and provide these headings:
-    ### 1. Facts given in the task
-    ### 2. Facts that we have learned
-    ### 3. Facts still to look up
-    ### 4. Facts still to derive
-    Now write your new list of facts below.
+    Identify any gaps or missing information that need to be addressed. Consider:
+    - Unanswered aspects of the task
+    - Additional data that may be required
+    - Clarifications needed to refine the plan
+
+    Document these considerations to guide the next steps.
   "update_plan_pre_messages": |-
-    You are a world expert at making efficient plans to solve any task using a set of carefully crafted tools.
-    You have been given a task:
-    ```
-    {{task}}
-    ```
+    Reflect on the current plan in light of the updated facts. Determine:
+    - Which steps remain to be completed
+    - Any modifications needed to existing steps
+    - New steps that should be added to address uncovered gaps
 
-    Find below the record of what has been tried so far to solve it. Then you will be asked to make an updated plan to solve the task.
-    If the previous tries so far have met some success, you can make an updated plan based on these actions.
-    If you are stalled, you can make a completely new plan starting from scratch.
+    Update the plan accordingly to ensure continued progress toward solving the task.
   "update_plan_post_messages": |-
-    You're still working towards solving this task:
-    ```
-    {{task}}
-    ```
-    You can leverage these tools:
-    {%- for tool in tools.values() %}
-    - {{ tool.name }}: {{ tool.description }}
-        Takes inputs: {{tool.inputs}}
-        Returns an output of type: {{tool.output_type}}
-    {%- endfor %}
+    Confirm that the revised plan is coherent and feasible. Ensure that:
+    - Each step is clearly defined and actionable
+    - The sequence of steps leads logically to the desired outcome
+    - All necessary tools and resources are accounted for
 
-    {%- if managed_agents and managed_agents.values() | list %}
-    You can also give tasks to team members.
-    Calling a team member works the same as for calling a tool: simply, the only argument you can give in the call is 'task'.
-    Given that this team member is a real human, you should be very verbose in your task, it should be a long string providing informations as detailed as necessary.
-    Here is a list of the team members that you can call:
-    {%- for agent in managed_agents.values() %}
-    - {{ agent.name }}: {{ agent.description }}
-    {%- endfor %}
-    {%- else %}
-    {%- endif %}
-
-    Here is the up to date list of facts that you know:
-    ```
-    {{facts_update}}
-    ```
-
-    Now for the given task, develop a step-by-step high-level plan taking into account the above inputs and list of facts.
-    This plan should involve individual tasks based on the available tools, that if executed correctly will yield the correct answer.
-    Beware that you have {remaining_steps} steps remaining.
-    Do not skip steps, do not add any superfluous steps. Only write the high-level plan, DO NOT DETAIL INDIVIDUAL TOOL CALLS.
-    After writing the final step of the plan, write the '\n<end_plan>' tag and stop there.
-
-    Now write your new plan below.
+    Finalize the updated plan to guide the remaining execution steps.  
 "managed_agent":
   "task": |-
-    You're a helpful agent named '{{name}}'.
-    You have been submitted this task by your manager.
+    You are a helpful reasoning agent named '{{name}}', trained to answer complex questions using step-by-step analysis, logical reasoning, and scientific knowledge.    
     ---
     Task:
     {{task}}
     ---
-    You're helping your manager solve a wider task: so make sure to not provide a one-line answer, but give as much information as possible to give them a clear understanding of the answer.
+    Your manager has assigned you this question as part of a broader research task. Provide a comprehensive and structured response that demonstrates clear reasoning.
     Your final_answer WILL HAVE to contain these parts:
-    ### 1. Task outcome (short version):
-    ### 2. Task outcome (extremely detailed version):
-    ### 3. Additional context (if relevant):
+    ### 1. Task outcome (short version): A brief summary of the conclusion or answer.
+    ### 2. Task outcome (extremely detailed version): Include your step-by-step reasoning, assumptions, scientific background, and any tools or concepts used.
+    ### 3. Additional context (if relevant): Explain edge cases, uncertainties, or implications of the answer.
 
-    Put all these in your final_answer tool, everything that you do not pass as an argument to final_answer will be lost.
-    And even if your task resolution is not successful, please return as much context as possible, so that your manager can act upon this feedback.
+    Do not provide a one-line answer. Provide informative and grounded reasoning. If the question is ambiguous, offer the most plausible scientific interpretation and justify it.
   "report": |-
     Here is the final answer from your managed agent '{{name}}':
     {{final_answer}}
-
+"final_answer":
+  "pre_messages": |-
+    Now summarize your reasoning into the final answer with the required structure:    
+    FINAL ANSWER: [YOUR FINAL ANSWER]. 
+    YOUR FINAL ANSWER should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. If you are asked for a number, don't use comma to write your number neither use units such as $ or percent sign unless specified otherwise. If you are asked for a string, don't use articles, neither abbreviations (e.g. for cities), and write the digits in plain text unless specified otherwise. If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string.
+    Your answer should only start with "FINAL ANSWER: ", then follows with the answer. 
+  "post_messages": |-
+    Your final answer is now complete. Make sure it follows the required structure and format.        
+    FINAL ANSWER: {{final_answer}}
 

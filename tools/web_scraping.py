@@ -115,7 +115,7 @@ class WebScrapingTool(Tool):
             elif action == 'element' and selector:
                 result = self._extract_elements(soup, selector, attributes)
             else:
-                raise ValueError("Invalid action or missing selector for 'element' action")
+                raise ValueError("Invalid action or missing selector for 'element' action. Available actions: 'text', 'links', 'element'.")
             
             return json.dumps({
                 'url': url,
