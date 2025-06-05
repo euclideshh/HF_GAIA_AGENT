@@ -9,7 +9,6 @@ langchain-community
 wikipedia-api
 arxiv
 numpy
-pandas
 matplotlib
 Pillow
 pytesseract
@@ -26,3 +25,5 @@ pdfplumber
 langchain-text-splitters
 transformers
 torch
+youtube-transcript-api
+pytube

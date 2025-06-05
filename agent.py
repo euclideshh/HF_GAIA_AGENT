@@ -14,6 +14,7 @@ from tools.code_execution import CodeExecutionTool
 from tools.document_processing import DocumentProcessingTool
 from tools.image_processing import ImageProcessingTool
 from tools.web_scraping import WebScrapingTool
+from tools.youtube_processing import YouTubeVideoProcessorTool
 
 
 # Custom tools 
@@ -28,6 +29,7 @@ code_execution = CodeExecutionTool()
 document_processing = DocumentProcessingTool(temp_dir="doc_processing")
 image_generation_tool = ImageProcessingTool()
 web_scraping = WebScrapingTool()
+youtube_processing = YouTubeVideoProcessorTool()
 
 # Import tool from Hub
 #image_generation_tool = load_tool("agents-course/text-to-image", trust_remote_code=True)
@@ -56,6 +58,7 @@ tools = [
     code_execution, 
     document_processing, 
     image_generation_tool,
+    youtube_processing,
     final_answer
 ]
 
