@@ -62,38 +62,6 @@ tools = [
     final_answer
 ]
 
-#### additional_imports = [
-####     # Document processing
-####     "pymupdf",                              # PDF reading
-####     # HTTP & URLs
-####     "requests",                             # HTTP client for REST calls :contentReference[oaicite:0]{index=0}
-####     "urllib.parse",                         # URL parsing and construction :contentReference[oaicite:1]{index=1}
-####     # Data formats
-####     "json",                                 # JSON serialization/deserialization
-####     "csv",                                  # CSV reading/writing
-####     "xml.etree.ElementTree",                # XML parsing
-####     "bs4",                                  # BeautifulSoup for HTML parsing
-####     # Text processing
-####     "re",                                   # Regular expressions
-####     # File & OS
-####     "os",                                   # OS interactions (env vars, paths)
-#### "sys",                                  # Interpreter info
-####     "pathlib",                              # Object‑oriented filesystem paths
-####     "subprocess",                           # Safe subprocess calls
-####     # Computation
-####     "math",                                 # Advanced math functions
-####     "random",                               # Random sampling and shuffling
-####     # Date & time
-####     "datetime",                             # Date/time parsing and arithmetic
-####     # Data analysis
-####     "numpy",                                # Numerical arrays :contentReference[oaicite:2]{index=2}
-####     "pandas",                               # Tabular data manipulation
-####     # Imaging
-####     "PIL.Image",                            # Image loading/inspection
-####     # Logging
-####     "logging",                              # Structured debug/info logging
-#### ]
-    
 agent = CodeAgent(
     model=model,
     tools = tools, 
