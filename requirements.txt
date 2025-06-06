@@ -1,7 +1,7 @@
 gradio
 requests
 markdownify
-smolagents==1.13.0
+smolagents
 requests
 duckduckgo_search
 pandas

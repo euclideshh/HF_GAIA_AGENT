@@ -1,4 +1,4 @@
-from smolagents import CodeAgent, HfApiModel, load_tool, tool
+from smolagents import CodeAgent, InferenceClientModel, load_tool, tool #HfApiModel
 import datetime
 import requests
 import pytz
@@ -16,8 +16,7 @@ from tools.image_processing import ImageProcessingTool
 from tools.web_scraping import WebScrapingTool
 from tools.youtube_processing import YouTubeVideoProcessorTool
 
-
-# Custom tools 
+# Instantiate the tools
 visit_webpage = VisitWebpageTool()
 web_search = DuckDuckGoSearchTool(max_results=5)
 math_tools = MathOperationsTool()
@@ -31,22 +30,7 @@ image_generation_tool = ImageProcessingTool()
 web_scraping = WebScrapingTool()
 youtube_processing = YouTubeVideoProcessorTool()
 
-# Import tool from Hub
-#image_generation_tool = load_tool("agents-course/text-to-image", trust_remote_code=True)
-
-# If the agent does not answer, the model is overloaded, please use another model or the following Hugging Face Endpoint that also contains qwen2.5 coder:
-# model_id='https://pflgm2locj2t89co.us-east-1.aws.endpoints.huggingface.cloud' 
-
-model = HfApiModel(
-    max_tokens=2096,
-    temperature=0,
-    model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
-    #custom_role_conversions=None,
-) 
-
-with open("prompt.yaml", 'r') as stream:
-    prompt_templates = yaml.safe_load(stream)
-
+# Define the tools to be used by the CodeAgent
 tools = [    
     visit_webpage, 
     web_search, 
@@ -62,7 +46,20 @@ tools = [
     final_answer
 ]
 
-agent = CodeAgent(
+# Load prompt templates
+with open("prompt.yaml", 'r') as stream:
+    prompt_templates = yaml.safe_load(stream)
+
+# Model configuration
+model = InferenceClientModel(
+    max_tokens=2096,
+    temperature=0,
+    model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
+    provider="hf-inference"
+)
+
+# CodeAgent definition
+gaai_agent = CodeAgent(
     model=model,
     tools = tools, 
     #additional_authorized_imports = additional_imports,

@@ -3,7 +3,7 @@ import gradio as gr
 import requests
 import inspect
 import pandas as pd
-from agent import agent
+from agent import gaai_agent
 import json
 
 # (Keep Constants as is)
@@ -15,13 +15,13 @@ DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
 class BasicAgent:
     def __init__(self):
         print("Initializing BasicAgent with GAIA agent...")
-        self.agent = agent
+        self.gaai_agent = gaai_agent
         
     def __call__(self, question: str) -> str:
         print(f"Agent received question: {question}")
         try:
             # Call the agent with the question and get the response
-            response = self.agent.run(question)
+            response = self.gaai_agent.run(question)
             print(response)
             return response            
         except Exception as e:
