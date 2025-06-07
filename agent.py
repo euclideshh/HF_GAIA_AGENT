@@ -66,3 +66,5 @@ gaai_agent = CodeAgent(
     max_steps=20,
 )
 
+#Force the agent to use the tools defined above
+gaai_agent.prompt_templates["system_prompt"] = gaai_agent.prompt_templates["system_prompt"] + "\nDo not use forward method to call Tools, just use tool_name(params), example: papers = arxiv_search(query=\"transformers time series forecasting year:2023\").\nYour final answer should be a number or as few words as possible or a comma separated list of numbers and/or strings. If you are asked for a number, don't use comma to write your number neither use units such as $ or percent sign unless specified otherwise. If you are asked for a string, don't use articles, neither abbreviations (e.g. for cities), and write the digits in plain text unless specified otherwise. If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string."
