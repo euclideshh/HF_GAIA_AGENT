@@ -47,8 +47,8 @@ tools = [
 ]
 
 # Load prompt templates
-with open("prompt.yaml", 'r') as stream:
-    prompt_templates = yaml.safe_load(stream)
+#with open("prompt.yaml", 'r') as stream:
+#    prompt_templates = yaml.safe_load(stream)
 
 # Model configuration
 model = InferenceClientModel(
@@ -62,8 +62,7 @@ model = InferenceClientModel(
 gaai_agent = CodeAgent(
     model=model,
     tools = tools, 
-    #additional_authorized_imports = additional_imports,
-    prompt_templates=prompt_templates,
-    verbosity_level=0,
+    verbosity_level=2,
+    max_steps=20,
 )
 

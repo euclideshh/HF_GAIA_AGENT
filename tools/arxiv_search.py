@@ -86,3 +86,4 @@ class ArxivSearchTool(Tool):
             
         except Exception as e:
             return f"Error searching arXiv: {str(e)}"
+
