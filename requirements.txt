@@ -44,6 +44,7 @@ arxiv
 pymupdf
 PyMuPDF
 fitz
+pdfplumber
 pdf2image
 tabula-py
 
