@@ -32,6 +32,8 @@ smolagents
 # ==============================================================================
 # SEARCH AND INFORMATION SOURCES
 # ==============================================================================
+tavily-python  # Tavily Search API 
+langchain-tavily
 duckduckgo_search
 google-search-results  # SERP API as fallback
 wikipedia-api

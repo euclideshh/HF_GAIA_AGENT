@@ -1,6 +1,7 @@
 import os
-from typing import Any, Optional, Dict, List
+from typing import Dict, List
 from smolagents.tools import Tool
+from langchain_community.tools import TavilySearchResults
 import logging
 
 # Setup logging
@@ -9,165 +10,63 @@ logger = logging.getLogger(__name__)
 
 class WebSearchTool(Tool):
     name = "web_search"
-    description = "Performs a web search and returns the top search results."
+    description = "Search the web for a query using Tavily API and return the top 3 most relevant results."
     inputs = {'query': {'type': 'string', 'description': 'The search query to perform.'}}
-    output_type = "string"
+    output_type = "object"
 
-    def __init__(self, max_results: int = 10, **kwargs):
+    def __init__(self, max_results: int = 3, **kwargs):
         """
-        Initialize the web search tool with both DuckDuckGo and SERP API capabilities
-        
-        Args:
-            max_results (int): Maximum number of search results to return
-            serpapi_key (str, optional): SERP API key for fallback searches
-            **kwargs: Additional arguments passed to DuckDuckGo search
+        Initialize the web search tool with Tavily API
         """
         super().__init__()
-        self.max_results = max_results
-        self.serpapi_key = os.getenv('SERPAPI_API_KEY')
-        self.ddg_available = False
-        self.serpapi_available = False
         
-        # Initialize DuckDuckGo
+        # Verify Tavily API key is set
+        if not os.getenv('TAVILY_API_KEY'):
+            logger.error("TAVILY_API_KEY environment variable not set")
+            raise ValueError("TAVILY_API_KEY environment variable must be set")
+        
+        # Initialize Tavily search
         try:
-            from duckduckgo_search import DDGS
-            self.ddgs = DDGS(**kwargs)
-            self.ddg_available = True
-        except ImportError:
-            logger.warning("DuckDuckGo search package not available. Install with: pip install duckduckgo-search")
-        
-        # Initialize SERP API as fallback
-        if self.serpapi_key:
-            try:
-                from serpapi import GoogleSearch
-                self.serpapi_available = True
-            except ImportError:
-                logger.warning("SERP API package not available. Install with: pip install google-search-results")
-        else:
-            logger.warning("SERP API key not provided. Fallback search will not be available.")
-
-    def _search_with_ddg(self, query: str) -> List[Dict[str, str]]:
-        """
-        Perform search using DuckDuckGo
-        
-        Args:
-            query (str): Search query
-            
-        Returns:
-            List[Dict[str, str]]: List of search results
-            
-        Raises:
-            Exception: If search fails or no results found
-        """
-        if not self.ddg_available:
-            raise Exception("DuckDuckGo search not available")
-            
-        try:
-            results = list(self.ddgs.text(query, max_results=self.max_results))
-            if not results:
-                raise Exception("No results found from DuckDuckGo")
-            return results
+            self.search_tool = TavilySearchResults(max_results=max_results)
         except Exception as e:
-            logger.warning(f"DuckDuckGo search failed: {str(e)}")
+            logger.error(f"Failed to initialize Tavily search: {str(e)}")
             raise
 
-    def _search_with_serp(self, query: str) -> List[Dict[str, str]]:
+    def forward(self, query: str) -> Dict[str, str]:
         """
-        Perform search using SERP API
+        Search Tavily for a query and return maximum 3 results.
         
         Args:
-            query (str): Search query
+            query (str): The search query to perform.
             
         Returns:
-            List[Dict[str, str]]: List of search results
-            
-        Raises:
-            Exception: If search fails or no results found
+            Dict[str, str]: Dictionary containing formatted search results
         """
-        if not self.serpapi_available or not self.serpapi_key:
-            raise Exception("SERP API search not available")
-
         try:
-            from serpapi import GoogleSearch
-            search = GoogleSearch({
-                "q": query,
-                "api_key": self.serpapi_key,
-                "num": self.max_results
-            })
-            results = search.get_dict().get('organic_results', [])
-            
-            if not results:
-                raise Exception("No results found from SERP API")
-            
-            # Convert SERP API results to match DuckDuckGo format
-            formatted_results = []
-            for result in results:
-                formatted_results.append({
-                    'title': result.get('title', ''),
-                    'href': result.get('link', ''),
-                    'body': result.get('snippet', '')
-                })
-            return formatted_results
-        except Exception as e:
-            logger.error(f"SERP API search failed: {str(e)}")
-            raise
+            if not query:
+                raise ValueError("Search query cannot be empty")
 
-    def forward(self, query: str) -> str:
-        """
-        Perform web search with fallback options
-        
-        Args:
-            query (str): Search query
+            # Perform search using Tavily
+            search_results = self.search_tool.invoke({"query": query})
             
-        Returns:
-            str: Formatted search results
+            if not search_results:
+                return {"web_results": "No search results found"}
             
-        Raises:
-            Exception: If both search methods fail or return no results
-        """
-        if not query:
-            raise ValueError("Search query cannot be empty")
-            
-        ddg_error = None
-        serp_error = None
-        results = []
-        
-        # Try DuckDuckGo first
-        if self.ddg_available:
-            try:
-                results = self._search_with_ddg(query)
-            except Exception as e:
-                ddg_error = str(e)
-                logger.warning(f"DuckDuckGo search failed: {ddg_error}")
-            
-        # If DuckDuckGo fails, try SERP API
-        if not results and self.serpapi_available and self.serpapi_key:
-            logger.info("Falling back to SERP API")
-            try:
-                results = self._search_with_serp(query)
-            except Exception as e:
-                serp_error = str(e)
-                logger.error(f"SERP API search failed: {serp_error}")
-        
-        # If both searches fail
-        if not results:
-            errors = []
-            if ddg_error:
-                errors.append(f"DuckDuckGo: {ddg_error}")
-            if serp_error:
-                errors.append(f"SERP API: {serp_error}")
-            error_msg = "Search failed! " + " | ".join(errors)
-            raise Exception(error_msg)
-
-        # Format results
-        postprocessed_results = []
-        for result in results:
-            if all(k in result for k in ['title', 'href', 'body']):
-                postprocessed_results.append(
-                    f"[{result['title']}]({result['href']})\n{result['body']}"
+            if isinstance(search_results, List):
+                # Format the results
+                formatted_results = "\n\n---\n\n".join(
+                    [
+                        f'<Document source="{result.get("url", "")}" page=""/>\n{result.get("content", "")}\n</Document>'
+                        for result in search_results
+                    ]
                 )
-        
-        if not postprocessed_results:
-            raise Exception("No valid results could be processed")
+            else:
+                logger.warning(f"Unexpected search results format: {type(search_results)}")
+                return {"web_results": "Unexpected search results format"}
             
-        return "## Search Results\n\n" + "\n\n".join(postprocessed_results)
+            return {"web_results": formatted_results}
+            
+        except Exception as e:
+            error_msg = f"Search failed: {str(e)}"
+            logger.error(error_msg)
+            return {"web_results": error_msg}
