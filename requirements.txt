@@ -1,29 +1,83 @@
+# ==============================================================================
+# USER INTERFACE AND WEB
+# ==============================================================================
 gradio
 requests
-markdownify
-smolagents
-requests
-duckduckgo_search
+beautifulsoup4
+
+# ==============================================================================
+# DATA ANALYSIS AND SCIENTIFIC COMPUTING
+# ==============================================================================
 pandas
-langchain-community
-wikipedia-api
-arxiv
 numpy
 matplotlib
-Pillow
-pytesseract
+
+# ==============================================================================
+# TEXT PROCESSING AND NLP
+# ==============================================================================
+markdownify
+regex
+transformers
+sentence-transformers
+langchain
+langchain-community
+langchain-text-splitters
+deep-translator
+
+# ==============================================================================
+# AGENTS AND AI
+# ==============================================================================
+smolagents
+
+# ==============================================================================
+# SEARCH AND INFORMATION SOURCES
+# ==============================================================================
+duckduckgo_search
+wikipedia-api
+wikipedia
+arxiv
+
+# ==============================================================================
+# DOCUMENT PROCESSING
+# ==============================================================================
+# PDF
+pymupdf
+PyMuPDF
+fitz
+pdf2image
+tabula-py
+
+# Word y Excel
 python-docx
 openpyxl
-tabula-py
-pdf2image
+
+# OCR
+pytesseract
+Pillow
+
+# ==============================================================================
+# INFORMATION RETRIEVAL AND VECTORS
+# ==============================================================================
 faiss-cpu
-sentence-transformers
-pymupdf 
-fitz
-beautifulsoup4
-pdfplumber
-langchain-text-splitters
-transformers
+
+# ==============================================================================
+# MACHINE LEARNING AND DEEP LEARNING
+# ==============================================================================
 torch
+torchaudio
+accelerate
+
+# ==============================================================================
+# AUDIO PROCESSING
+# ==============================================================================
+librosa>=0.10.0
+soundfile>=0.12.0
+ffmpeg-python>=0.2.0
+openai-whisper
+
+# ==============================================================================
+# VIDEO AND YOUTUBE PROCESSING
+# ==============================================================================
 youtube-transcript-api
 pytube
+yt_dlp

@@ -6,104 +6,18 @@
   During each intermediate step, you can use 'print()' to save whatever important information you will then need.
   These print outputs will then appear in the 'Observation:' field, which will be available as input for the next step.
   Repeat the cycle until you call `final_answer(...)` tool with the correct answer. 
+  It's important not to repeat code that produces errors. If the code execution fails, try other approaches.
+  You have a maximum of 15 steps to answer each question. If you can't provide a correct answer in fewer than 15 steps, please provide your best answer.
+  YOUR FINAL ANSWER should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. If you are asked for a number, don't use comma to write your number neither use units such as $ or percent sign unless specified otherwise. If you are asked for a string, don't use articles, neither abbreviations (e.g. for cities), and write the digits in plain text unless specified otherwise. If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string.
 
-  Take these rules into account:
-  1. You must only use the following tools: {{ tools }}. 
-  2. Do not assume the existence of tools that do not exist, this can cause runtime errors.
-  3. Never re-do a tool call that you previously did with the exact same parameters.
-  4. Do not import additional libraries or duplicate functionality of existing tools.
-   
-  Here are example of how you should call the tools:
-  Thought: Your reasoning and plan for the next step.
-  Code:
-  ```py
-  # Call a tool to perform a specific action.
-  papers = arxiv_search.forward(query="transformers time series forecasting year:2023")
-  print(papers)  # Use print to output important information for the next step.
-  ```<end_code>
-  Observation: Your observations based on the output of the previous step. This will be used as input for the next step.
+  Example of some tools:
+  papers = arxiv_search(query="transformers time series forecasting year:2023")
+  analysis = document_processing(action="analyze_pdf",content="financial_report.pdf",query="What are the total revenue figures for 2021 and 2022?")
+  growth = math_tools(operation="subtract",a=revenue_2022,b=revenue_2021)
+  search_results = web_search(query="latest deep learning frameworks comparison 2023")
+  content = web_scraping(url="https://example.com/dl-frameworks-2023",action="element",selector="table.comparison",attributes=["class"])
+  text = document_processing(action="ocr",content="presentation.jpg")
+  wikipedia_info = wikipedia_search(query="deep learning frameworks")   
+  youtube_video = youtube_processing(url="https://www.youtube.com/watch?v=L1vXCYZAYYM")
   
-  Example of tools:
-  papers = arxiv_search.forward(query="transformers time series forecasting year:2023")
-  analysis = document_processing.forward(action="analyze_pdf",content="financial_report.pdf",query="What are the total revenue figures for 2021 and 2022?")
-  growth = math_tools.forward(operation="subtract",a=revenue_2022,b=revenue_2021)
-  search_results = web_search.forward(query="latest deep learning frameworks comparison 2023")
-  content = web_scraping.forward(url="https://example.com/dl-frameworks-2023",action="element",selector="table.comparison",attributes=["class"])
-  text = document_processing.forward(action="ocr",content="presentation.jpg")
-  wikipedia_info = wikipedia_search.forward(query="deep learning frameworks")  
-  
-"planning":
-  "initial_facts": |-
-    Extract the key elements from the task description, such as:
-    - Main topic or subject matter
-    - Specific entities, dates, or events mentioned
-    - Type of information required (e.g., definition, explanation, data retrieval)
-    - Any constraints or specific formats expected in the answer
-
-    Present these facts in a clear and concise manner to inform the planning process.
-  "initial_plan": |-
-    Based on the extracted facts and the available tools, devise a step-by-step plan to address the task. For example:
-
-    1. **Understand the Question**: Analyze the task to determine what is being asked.
-    2. **Identify Relevant Tools**: Choose appropriate tools to gather or compute the necessary information.
-    3. **Gather Information**: Use the selected tools to retrieve data or perform computations.
-    4. **Process Data**: Analyze and interpret the gathered information to formulate an answer.
-    5. **Validate Answer**: Ensure the answer meets the requirements and is accurate.
-    6. **Present Final Answer**: Provide the answer in the specified format.
-
-    Ensure that each step logically follows from the previous one and contributes to solving the task effectively.
-  "update_facts_pre_messages": |-
-    Review the progress made so far, including:
-    - Tools that have been used and their outputs
-    - Any new information or insights gained
-    - Steps that have been completed successfully
-
-    Summarize these updates to inform any necessary adjustments to the plan.
-  "update_facts_post_messages": |-
-    Identify any gaps or missing information that need to be addressed. Consider:
-    - Unanswered aspects of the task
-    - Additional data that may be required
-    - Clarifications needed to refine the plan
-
-    Document these considerations to guide the next steps.
-  "update_plan_pre_messages": |-
-    Reflect on the current plan in light of the updated facts. Determine:
-    - Which steps remain to be completed
-    - Any modifications needed to existing steps
-    - New steps that should be added to address uncovered gaps
-
-    Update the plan accordingly to ensure continued progress toward solving the task.
-  "update_plan_post_messages": |-
-    Confirm that the revised plan is coherent and feasible. Ensure that:
-    - Each step is clearly defined and actionable
-    - The sequence of steps leads logically to the desired outcome
-    - All necessary tools and resources are accounted for
-
-    Finalize the updated plan to guide the remaining execution steps.  
-"managed_agent":
-  "task": |-
-    You are a helpful reasoning agent named '{{name}}', trained to answer complex questions using step-by-step analysis, logical reasoning, and scientific knowledge.    
-    ---
-    Task:
-    {{task}}
-    ---
-    Your manager has assigned you this question as part of a broader research task. Provide a comprehensive and structured response that demonstrates clear reasoning.
-    Your final_answer WILL HAVE to contain these parts:
-    ### 1. Task outcome (short version): A brief summary of the conclusion or answer.
-    ### 2. Task outcome (extremely detailed version): Include your step-by-step reasoning, assumptions, scientific background, and any tools or concepts used.
-    ### 3. Additional context (if relevant): Explain edge cases, uncertainties, or implications of the answer.
-
-    Do not provide a one-line answer. Provide informative and grounded reasoning. If the question is ambiguous, offer the most plausible scientific interpretation and justify it.
-  "report": |-
-    Here is the final answer from your managed agent '{{name}}':
-    {{final_answer}}
-"final_answer":
-  "pre_messages": |-
-    Now summarize your reasoning into the final answer with the required structure:    
-    FINAL ANSWER: [YOUR FINAL ANSWER]. 
-    YOUR FINAL ANSWER should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. If you are asked for a number, don't use comma to write your number neither use units such as $ or percent sign unless specified otherwise. If you are asked for a string, don't use articles, neither abbreviations (e.g. for cities), and write the digits in plain text unless specified otherwise. If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string.
-    Your answer should only start with "FINAL ANSWER: ", then follows with the answer. 
-  "post_messages": |-
-    Your final answer is now complete. Make sure it follows the required structure and format.        
-    FINAL ANSWER: [YOUR FINAL ANSWER]
 
