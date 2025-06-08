@@ -14,7 +14,7 @@ from tools.code_execution import CodeExecutionTool
 from tools.document_processing import DocumentProcessingTool
 from tools.image_processing import ImageProcessingTool
 from tools.web_scraping import WebScrapingTool
-from tools.youtube_processing import YouTubeVideoProcessorTool
+#############from tools.youtube_processing import YouTubeVideoProcessorTool
 
 # Instantiate the tools
 #visit_webpage = VisitWebpageTool()
@@ -28,7 +28,7 @@ code_execution = CodeExecutionTool()
 document_processing = DocumentProcessingTool(temp_dir="doc_processing")
 image_generation_tool = ImageProcessingTool()
 web_scraping = WebScrapingTool()
-youtube_processing = YouTubeVideoProcessorTool()
+############youtube_processing = YouTubeVideoProcessorTool()
 
 # Define the tools to be used by the CodeAgent
 tools = [    
@@ -42,7 +42,7 @@ tools = [
     code_execution, 
     document_processing, 
     image_generation_tool,
-    youtube_processing,
+    ##################youtube_processing,
     final_answer
 ]
 
