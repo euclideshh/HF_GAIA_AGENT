@@ -68,7 +68,7 @@ gaai_agent = CodeAgent(
     tools = tools, 
     verbosity_level=2,
     max_steps=20,        
-    add_base_tools=True
+    #######add_base_tools=True
 )
 
 #Force the agent to use the tools defined above

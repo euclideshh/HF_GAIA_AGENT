@@ -34,7 +34,7 @@ smolagents
 # ==============================================================================
 tavily-python  # Tavily Search API 
 langchain-tavily
-duckduckgo_search
+#########duckduckgo_search
 google-search-results  # SERP API as fallback
 wikipedia-api
 wikipedia
