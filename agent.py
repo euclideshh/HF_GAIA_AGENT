@@ -93,7 +93,7 @@ class AsyncCodeAgentManager:
         """Initialize all tools for the agent."""
         try:
             # Instantiate the tools
-            web_search = DuckDuckGoSearchTool(max_results=self.web_search_max_results)
+            web_search = WebSearchTool(max_results=self.web_search_max_results) #Corrected Tool Name
             math_tools = MathOperationsTool()
             final_answer = FinalAnswerTool()
             wikipedia_search = WikipediaSearchTool(load_max_docs=self.wikipedia_max_docs)
