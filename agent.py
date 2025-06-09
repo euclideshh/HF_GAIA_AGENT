@@ -54,10 +54,10 @@ tools = [
 
 # Model configuration
 model = InferenceClientModel(
-    max_tokens=1000,
+    max_tokens=2000,
     temperature=0,
-    #model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
-    model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
+    model_id='meta-llama/Llama-3.3-70B-Instruct',
+    ###model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
     provider="hf-inference",
     timeout = 300
 )
@@ -67,7 +67,8 @@ gaai_agent = CodeAgent(
     model=model,
     tools = tools, 
     verbosity_level=2,
-    max_steps=20,          
+    max_steps=20,     
+    planning_interval=3     
     #######add_base_tools=True
 )
 
