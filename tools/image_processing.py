@@ -114,7 +114,11 @@ class ImageProcessingTool(Tool):
                 }
             
             else:
-                return {"error": f"Unsupported action: {action}"}
+                if not os.path.exists(content):
+                    return {"error": f"File not found: {content}"}
+                result = self.encode_image(content)
+                return {"base64_string": result}
+                ###return {"error": f"Unsupported action: {action}"}
                 
         except Exception as e:
             return {"error": f"Error processing image: {str(e)}"}

@@ -1,538 +1,356 @@
 import os
-import re
 import tempfile
-import logging
-from typing import Dict, Any, Optional, List
+import cv2
+import numpy as np
+from typing import List, Dict, Any
+import requests
+from PIL import Image
 import torch
-
+from transformers import (
+    BlipProcessor, BlipForConditionalGeneration,
+    pipeline, AutoTokenizer, AutoModelForSequenceClassification
+)
+import yt_dlp
 from smolagents import Tool
-
-# Importaciones con manejo de errores
-try:
-    from transformers import pipeline
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-
-try:
-    import whisper
-    WHISPER_AVAILABLE = True
-except ImportError:
-    WHISPER_AVAILABLE = False
-
-try:
-    import yt_dlp
-    YT_DLP_AVAILABLE = True
-except ImportError:
-    YT_DLP_AVAILABLE = False
-
-try:
-    from youtube_transcript_api import YouTubeTranscriptApi
-    from youtube_transcript_api.formatters import TextFormatter
-    TRANSCRIPT_API_AVAILABLE = True
-except ImportError:
-    TRANSCRIPT_API_AVAILABLE = False
-
-try:
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    LANGCHAIN_AVAILABLE = True
-except ImportError:
-    LANGCHAIN_AVAILABLE = False
+import whisper
+import subprocess
+import time
+import random
 
 
 class YouTubeVideoProcessorTool(Tool):
-    name = "youtube_processing"
-    description = "Process YouTube videos to extract transcript content using multiple methods (subtitles, Whisper). Optimized for limited resources and works in both local and HuggingFace Space environments."
+    name = "youtube_video_processor"
+    description = """
+    Processes YouTube videos to answer questions about their content, including visual elements, 
+    people, conversations, actions, and scenes. Takes a YouTube URL and a question as input.
+    """
     inputs = {
-        'url': {
-            'type': 'string', 
-            'description': 'The YouTube video URL to process.'
+        "url": {
+            "type": "string", 
+            "description": "YouTube video URL to analyze"
         },
-        'language': {
-            'type': 'string', 
-            'description': 'Preferred language for transcript (e.g., "en", "es"). If not specified, defaults to English or first available.', 
-            'nullable': True
-        },
-        'translate': {
-            'type': 'boolean', 
-            'description': 'Whether to translate non-English transcripts to English using Whisper.', 
-            'nullable': True
-        },
-        'max_duration': {
-            'type': 'integer',
-            'description': 'Maximum video duration in seconds to process (default: 600s = 10min)',
-            'nullable': True
-        },
-        'method': {
-            'type': 'string',
-            'description': 'Processing method: "auto" (try subtitles first), "subtitles" (only), "whisper" (only)',
-            'nullable': True
+        "questions": {
+            "type": "string", 
+            "description": "Question to answer about the video content"
         }
     }
-    output_type = "object"
+    output_type = "string"
 
     def __init__(self):
-        """Initialize the YouTube processor with optimal settings for limited resources."""
         super().__init__()
+        self._setup_models()
+        self._setup_yt_dlp()
+
+    def _setup_models(self):
+        """Initialize AI models for video analysis"""
+        # Visual question answering model
+        self.blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
+        self.blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-vqa-base")
         
-        # Configuración para recursos limitados
-        self.max_file_size_mb = 50  # Límite de archivo de audio
-        self.default_max_duration = 600  # 10 minutos por defecto
-        self.audio_quality = '64'  # Calidad baja para ahorrar recursos
+        # Audio transcription model
+        self.whisper_model = whisper.load_model("base")
         
-        # Modelos Whisper optimizados
-        self.whisper_model = None
-        self.transformers_pipeline = None
-        self.current_model_type = None
-        
-        # Logger
-        self.logger = logging.getLogger(__name__)
-        
-        # Verificar dependencias disponibles
-        self._check_dependencies()
-    
-    def _check_dependencies(self) -> Dict[str, bool]:
-        """Verificar qué dependencias están disponibles."""
-        dependencies = {
-            'transformers': TRANSFORMERS_AVAILABLE,
-            'whisper': WHISPER_AVAILABLE,
-            'yt_dlp': YT_DLP_AVAILABLE,
-            'transcript_api': TRANSCRIPT_API_AVAILABLE,
-            'langchain': LANGCHAIN_AVAILABLE
+        # Text analysis pipeline
+        self.text_analyzer = pipeline(
+            "question-answering", 
+            model="distilbert-base-cased-distilled-squad",
+            tokenizer="distilbert-base-cased-distilled-squad"
+        )
+    def _get_random_user_agent(self):
+        user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0',
+        ]   
+        return random.choice(user_agents)        
+
+    def _setup_yt_dlp(self):
+        """Configure yt-dlp with anti-blocking measures"""
+        self.ydl_opts = {
+            #'format': 'best[height<=720]',  # Limit quality to avoid large downloads
+            'format': 'bestaudio/best',
+            'extractaudio': True,
+            'audioformat': 'wav',
+            'outtmpl': '%(title)s.%(ext)s',
+            'quiet': True,
+            'no_warnings': True,
+            # Anti-blocking measures
+            'sleep_interval': 2,
+            'max_sleep_interval': 3,
+            'sleep_interval_requests': 2,
+            'sleep_interval_subtitles': 2,
+            'extractor_retries': 3,
+            'fragment_retries': 3,
+            #'http_headers': {
+            #    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            # Headers rotation
+            'http_headers': {
+                'User-Agent': self._get_random_user_agent(),
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Accept-Encoding': 'gzip,deflate',
+                'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+                'Connection': 'keep-alive',
+            },            
+            # Use proxy rotation if available
+            'proxy': self._get_random_proxy() if self._has_proxies() else None,
         }
-        
-        self.logger.info(f"Dependencias disponibles: {dependencies}")
-        return dependencies
-    
-    def _extract_video_id(self, url: str) -> Optional[str]:
-        """Extraer el ID del video de YouTube de la URL."""
-        patterns = [
-            r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
-            r'(?:embed\/)([0-9A-Za-z_-]{11})',
-            r'(?:v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match and len(match.group(1)) == 11:
-                return match.group(1)
-        return None
-    
-    def _get_video_info(self, url: str) -> Dict[str, Any]:
-        """Obtener información básica del video sin descargarlo."""
-        if not YT_DLP_AVAILABLE:
-            return {'error': 'yt-dlp no disponible'}
-        
+
+    def _has_proxies(self) -> bool:
+        """Check if proxy list is available"""
+        proxy_file = os.environ.get('PROXY_LIST_FILE', 'proxies.txt')
+        return os.path.exists(proxy_file)
+
+    def _get_random_proxy(self) -> str:
+        """Get random proxy from list"""
         try:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                return {
-                    'title': info.get('title', 'Unknown'),
-                    'duration': info.get('duration', 0),
-                    'upload_date': info.get('upload_date', ''),
-                    'uploader': info.get('uploader', ''),
-                    'view_count': info.get('view_count', 0),
-                    'language': info.get('language', 'unknown')
-                }
-        except Exception as e:
-            return {'error': f'Error obteniendo info del video: {str(e)}'}
-    
-    def _get_subtitles_transcript(self, video_id: str, language: Optional[str] = None) -> Dict[str, Any]:
-        """Intentar obtener transcript usando subtítulos disponibles."""
-        if not TRANSCRIPT_API_AVAILABLE:
-            return {'success': False, 'error': 'youtube-transcript-api no disponible'}
-        
-        try:
-            # Definir idiomas a intentar
-            languages_to_try = []
-            if language:
-                languages_to_try.append(language)
-            
-            # Agregar idiomas comunes como fallback
-            common_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh']
-            for lang in common_languages:
-                if lang not in languages_to_try:
-                    languages_to_try.append(lang)
-            
-            # Intentar obtener transcript
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=languages_to_try)
-            
-            # Formatear transcript
-            formatter = TextFormatter()
-            full_text = formatter.format_transcript(transcript)
-            
-            # Obtener metadata del transcript
-            detected_language = transcript[0].get('language_code', 'unknown') if transcript else 'unknown'
-            
-            return {
-                'success': True,
-                'method': 'subtitles',
-                'transcript': full_text,
-                'raw_transcript': transcript,
-                'detected_language': detected_language,
-                'total_segments': len(transcript)
-            }
-            
-        except Exception as e:
-            return {
-                'success': False,
-                'error': f'No se pudieron obtener subtítulos: {str(e)}'
-            }
-    
-    def _setup_whisper_model(self, model_type: str = 'transformers') -> bool:
-        """Configurar modelo Whisper optimizado para recursos limitados."""
-        try:
-            if model_type == 'transformers' and TRANSFORMERS_AVAILABLE:
-                if self.transformers_pipeline is None or self.current_model_type != 'transformers':
-                    self.logger.info("Cargando modelo Whisper con Transformers...")
-                    
-                    # Detectar dispositivo disponible
-                    device = 0 if torch.cuda.is_available() else -1
-                    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-                    
-                    self.transformers_pipeline = pipeline(
-                        "automatic-speech-recognition",
-                        model="openai/whisper-small",  # Balance entre tamaño y precisión
-                        torch_dtype=torch_dtype,
-                        device=device,
-                        return_timestamps=True
-                    )
-                    self.current_model_type = 'transformers'
-                return True
-                
-            elif model_type == 'openai' and WHISPER_AVAILABLE:
-                if self.whisper_model is None or self.current_model_type != 'openai':
-                    self.logger.info("Cargando modelo Whisper OpenAI...")
-                    # Usar modelo pequeño para recursos limitados
-                    self.whisper_model = whisper.load_model("small")
-                    self.current_model_type = 'openai'
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"Error cargando modelo Whisper: {str(e)}")
-            return False
-        
-        return False
-    
-    def _download_audio(self, url: str, max_duration: int) -> Dict[str, Any]:
-        """Descargar audio del video de YouTube con límites de recursos."""
-        if not YT_DLP_AVAILABLE:
-            return {'success': False, 'error': 'yt-dlp no disponible'}
-        
-        temp_dir = tempfile.mkdtemp()
-        
-        try:
-            # Configuración optimizada para recursos limitados
-            ydl_opts = {
-                'format': 'bestaudio[ext=m4a]/bestaudio/best[height<=480]',
-                'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'wav',
-                    'preferredquality': self.audio_quality,
-                }],
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-                # Filtros para limitar recursos
-                'match_filter': self._duration_filter(max_duration)
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Extraer info primero para verificar duración
-                info = ydl.extract_info(url, download=False)
-                duration = info.get('duration', 0)
-                
-                if duration > max_duration:
-                    return {
-                        'success': False,
-                        'error': f'Video demasiado largo: {duration}s > {max_duration}s'
-                    }
-                
-                # Descargar audio
-                ydl.download([url])
-            
-            # Encontrar archivo descargado
-            audio_files = []
-            for file in os.listdir(temp_dir):
-                if file.endswith(('.wav', '.mp3', '.m4a')):
-                    audio_files.append(file)
-            
-            if not audio_files:
-                return {'success': False, 'error': 'No se pudo descargar el audio'}
-            
-            audio_path = os.path.join(temp_dir, audio_files[0])
-            
-            # Verificar tamaño del archivo
-            file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-            if file_size_mb > self.max_file_size_mb:
-                return {
-                    'success': False,
-                    'error': f'Archivo demasiado grande: {file_size_mb:.1f}MB > {self.max_file_size_mb}MB'
-                }
-            
-            return {
-                'success': True,
-                'audio_path': audio_path,
-                'temp_dir': temp_dir,
-                'file_size_mb': round(file_size_mb, 1),
-                'duration': duration
-            }
-            
-        except Exception as e:
-            # Limpiar directorio temporal en caso de error
-            import shutil
-            try:
-                shutil.rmtree(temp_dir)
-            except:
-                pass
-            return {'success': False, 'error': f'Error descargando audio: {str(e)}'}
-    
-    def _duration_filter(self, max_duration: int):
-        """Filtro para limitar duración de videos."""
-        def filter_func(info_dict):
-            duration = info_dict.get('duration')
-            if duration and duration > max_duration:
-                return f"Video demasiado largo: {duration}s"
+            proxy_file = os.environ.get('PROXY_LIST_FILE', 'proxies.txt')
+            with open(proxy_file, 'r') as f:
+                proxies = f.read().strip().split('\n')
+            return random.choice(proxies) if proxies else None
+        except:
             return None
-        return filter_func
-    
-    def _transcribe_with_whisper(self, audio_path: str, translate: bool = False) -> Dict[str, Any]:
-        """Transcribir audio usando Whisper."""
-        try:
-            # Intentar con Transformers primero (más eficiente)
-            if self._setup_whisper_model('transformers'):
-                result = self.transformers_pipeline(
-                    audio_path,
-                    generate_kwargs={
-                        "task": "translate" if translate else "transcribe",
-                        "language": None  # Auto-detect
-                    }
-                )
-                
-                return {
-                    'success': True,
-                    'method': 'whisper_transformers',
-                    'transcript': result['text'],
-                    'chunks': result.get('chunks', []),
-                    'detected_language': 'auto-detected'
-                }
-            
-            # Fallback a OpenAI Whisper
-            elif self._setup_whisper_model('openai'):
-                options = {
-                    "task": "translate" if translate else "transcribe",
-                    "fp16": torch.cuda.is_available()
-                }
-                
-                result = self.whisper_model.transcribe(audio_path, **options)
-                
-                return {
-                    'success': True,
-                    'method': 'whisper_openai',
-                    'transcript': result['text'],
-                    'segments': result.get('segments', []),
-                    'detected_language': result.get('language', 'unknown')
-                }
-            
-            else:
-                return {
-                    'success': False,
-                    'error': 'No hay modelos Whisper disponibles'
-                }
-                
-        except Exception as e:
-            return {
-                'success': False,
-                'error': f'Error en transcripción Whisper: {str(e)}'
-            }
-    
-    def _split_text_into_chunks(self, text: str) -> List[str]:
-        """Dividir texto en chunks usando LangChain si está disponible."""
-        if LANGCHAIN_AVAILABLE:
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-                separators=["\n\n", "\n", ". ", " ", ""]
-            )
-            return text_splitter.split_text(text)
-        else:
-            # Fallback simple
-            words = text.split()
-            chunks = []
-            current_chunk = []
-            current_length = 0
-            
-            for word in words:
-                if current_length + len(word) > 1000 and current_chunk:
-                    chunks.append(" ".join(current_chunk))
-                    current_chunk = []
-                    current_length = 0
-                
-                current_chunk.append(word)
-                current_length += len(word) + 1
-            
-            if current_chunk:
-                chunks.append(" ".join(current_chunk))
-            
-            return chunks
-    
-    def forward(self, url: str, language: Optional[str] = None, translate: Optional[bool] = None, 
-               max_duration: Optional[int] = None, method: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Procesar video de YouTube para extraer transcript.
+
+    def _download_video(self, url: str, temp_dir: str) -> Dict[str, str]:
+        """Download video and audio with anti-blocking measures"""
+        video_path = None
+        audio_path = None
         
-        Args:
-            url: URL del video de YouTube
-            language: Idioma preferido para transcript
-            translate: Si traducir a inglés
-            max_duration: Duración máxima en segundos
-            method: Método de procesamiento ('auto', 'subtitles', 'whisper')
+        # Add random delay to avoid rate limiting
+        time.sleep(random.uniform(1, 3))
         
-        Returns:
-            Dict con resultado del procesamiento
-        """
         try:
-            # Validar URL y extraer video ID
-            video_id = self._extract_video_id(url)
-            if not video_id:
-                return {
-                    'success': False,
-                    'error': 'URL de YouTube inválida',
-                    'url': url
-                }
-            
-            # Configurar parámetros por defecto
-            max_duration = max_duration or self.default_max_duration
-            translate = translate or False
-            method = method or 'auto'
-            
-            # Obtener información del video
-            video_info = self._get_video_info(url)
-            if 'error' in video_info:
-                return {
-                    'success': False,
-                    'error': video_info['error'],
-                    'url': url
-                }
-            
-            # Verificar duración
-            if video_info.get('duration', 0) > max_duration:
-                return {
-                    'success': False,
-                    'error': f"Video demasiado largo: {video_info['duration']}s > {max_duration}s",
-                    'video_info': video_info
-                }
-            
-            result = {
-                'success': False,
-                'video_id': video_id,
-                'video_info': video_info,
-                'processing_method': method
-            }
-            
-            # Método 1: Intentar subtítulos primero (si method es 'auto' o 'subtitles')
-            if method in ['auto', 'subtitles']:
-                subtitle_result = self._get_subtitles_transcript(video_id, language)
+            with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:                
+                # Extract video info first
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'video')
                 
-                if subtitle_result['success']:
-                    transcript = subtitle_result['transcript']
-                    chunks = self._split_text_into_chunks(transcript)
-                    
-                    result.update({
-                        'success': True,
-                        'method_used': 'subtitles',
-                        'transcript': transcript,
-                        'chunks': chunks,
-                        'detected_language': subtitle_result.get('detected_language'),
-                        'total_segments': subtitle_result.get('total_segments', 0),
-                        'raw_data': subtitle_result.get('raw_transcript', [])
-                    })
-                    
-                    return result
-                
-                # Si solo se pidieron subtítulos y fallaron
-                elif method == 'subtitles':
-                    result.update({
-                        'success': False,
-                        'error': subtitle_result['error'],
-                        'method_attempted': 'subtitles'
-                    })
-                    return result
-            
-            # Método 2: Usar Whisper (si method es 'auto', 'whisper' o fallback)
-            if method in ['auto', 'whisper']:
-                # Descargar audio
-                self.logger.info("Descargando audio para transcripción con Whisper...")
-                audio_result = self._download_audio(url, max_duration)
-                
-                if not audio_result['success']:
-                    result.update({
-                        'success': False,
-                        'error': audio_result['error'],
-                        'method_attempted': 'whisper'
-                    })
-                    return result
-                
-                # Transcribir con Whisper
-                self.logger.info("Transcribiendo con Whisper...")
-                whisper_result = self._transcribe_with_whisper(
-                    audio_result['audio_path'], 
-                    translate=translate
-                )
-                
-                # Limpiar archivos temporales
-                import shutil
+                # Download video
+                video_opts = self.ydl_opts.copy()
+                video_opts['outtmpl'] = os.path.join(temp_dir, f'{title}_video.%(ext)s')
+                print("Video info extracted, starting download...")
+                max_retries = 3
                 try:
-                    shutil.rmtree(audio_result['temp_dir'])
-                except:
-                    pass
+                    for attempt in range(max_retries):
+                        print(f"Attempt {attempt + 1} of {max_retries} to download video...")
+                        with yt_dlp.YoutubeDL(video_opts) as video_ydl:
+                            video_ydl.download([url])
+                        # If download is successful, break the loop
+                        break
+                except Exception as e:                    
+                    # If all attempts fail, return None
+                    if attempt == max_retries - 1:
+                        return {"video": None, "audio": None}
+                    
+                #with yt_dlp.YoutubeDL(video_opts) as video_ydl:
+                #    video_ydl.download([url])
+                    
+                # Find downloaded video file
+                for file in os.listdir(temp_dir):
+                    if 'video' in file and any(ext in file for ext in ['.mp4', '.webm', '.mkv']):
+                        video_path = os.path.join(temp_dir, file)
+                        break
+                print(f"Video downloaded: {video_path}")                
+                # Extract audio separately
+                audio_opts = self.ydl_opts.copy()
+                audio_opts.update({
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'wav',
+                        'preferredquality': '192',
+                    }],
+                    'outtmpl': os.path.join(temp_dir, f'{title}_audio.%(ext)s')
+                })
+                print(f"Starting audio extraction...")
+                with yt_dlp.YoutubeDL(audio_opts) as audio_ydl:
+                    audio_ydl.download([url])
                 
-                if whisper_result['success']:
-                    transcript = whisper_result['transcript']
-                    chunks = self._split_text_into_chunks(transcript)
-                    
-                    result.update({
-                        'success': True,
-                        'method_used': whisper_result['method'],
-                        'transcript': transcript,
-                        'chunks': chunks,
-                        'detected_language': whisper_result.get('detected_language'),
-                        'audio_info': {
-                            'file_size_mb': audio_result['file_size_mb'],
-                            'duration': audio_result['duration']
-                        },
-                        'translation_applied': translate
-                    })
-                    
-                    return result
-                else:
-                    result.update({
-                        'success': False,
-                        'error': whisper_result['error'],
-                        'method_attempted': 'whisper'
-                    })
-                    return result
+                # Find audio file
+                for file in os.listdir(temp_dir):
+                    if 'audio' in file and file.endswith('.wav'):
+                        audio_path = os.path.join(temp_dir, file)
+                        break
+                print(f"Audio extracted: {audio_path}")
+                        
+        except Exception as e:
+            print(f"Trying fallback download method")
+            # Fallback: try alternative extraction method
+            return self._fallback_download(url, temp_dir)
             
-            # Si llegamos aquí, ningún método funcionó
-            result.update({
-                'success': False,
-                'error': 'No se pudo procesar el video con ningún método disponible',
-                'methods_attempted': [method]
-            })
+        return {"video": video_path, "audio": audio_path}
+
+    def _fallback_download(self, url: str, temp_dir: str) -> Dict[str, str]:
+        """Fallback download method using different approach"""
+        try:
+            # Use streamlink as fallback if available
+            video_path = os.path.join(temp_dir, "fallback_video.mp4")
+            cmd = f'streamlink "{url}" best -o "{video_path}"'
+            subprocess.run(cmd, shell=True, check=True, capture_output=True)
             
-            return result
+            # Extract audio from video
+            audio_path = os.path.join(temp_dir, "fallback_audio.wav")
+            cmd = f'ffmpeg -i "{video_path}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "{audio_path}"'
+            subprocess.run(cmd, shell=True, check=True, capture_output=True)
+            
+            return {"video": video_path, "audio": audio_path}
+        except:
+            return {"video": None, "audio": None}
+
+    def _extract_frames(self, video_path: str, num_frames: int = 10) -> List[np.ndarray]:
+        """Extract key frames from video"""
+        frames = []
+        if not video_path or not os.path.exists(video_path):
+            return frames
+            
+        cap = cv2.VideoCapture(video_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        if total_frames == 0:
+            cap.release()
+            return frames
+        
+        # Extract frames at regular intervals
+        interval = max(1, total_frames // num_frames)
+        
+        for i in range(0, total_frames, interval):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+            ret, frame = cap.read()
+            if ret:
+                # Convert BGR to RGB
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frames.append(frame_rgb)
+                if len(frames) >= num_frames:
+                    break
+        
+        cap.release()
+        return frames
+
+    def _transcribe_audio(self, audio_path: str) -> str:
+        """Transcribe audio to text using Whisper"""
+        if not audio_path or not os.path.exists(audio_path):
+            return ""
+        
+        try:
+            result = self.whisper_model.transcribe(audio_path)
+            return result["text"]
+        except Exception as e:
+            print(f"Transcription error: {str(e)}")
+            return ""
+
+    def _analyze_frames_with_question(self, frames: List[np.ndarray], question: str) -> List[str]:
+        """Analyze frames using visual question answering"""
+        answers = []
+        
+        for frame in frames:
+            try:
+                # Convert numpy array to PIL Image
+                pil_image = Image.fromarray(frame)
+                
+                # Process with BLIP model
+                inputs = self.blip_processor(pil_image, question, return_tensors="pt")
+                
+                with torch.no_grad():
+                    outputs = self.blip_model.generate(**inputs, max_length=50)
+                
+                answer = self.blip_processor.decode(outputs[0], skip_special_tokens=True)
+                if answer and answer.lower() not in ['no', 'none', 'nothing']:
+                    answers.append(answer)
+                    
+            except Exception as e:
+                print(f"Frame analysis error: {str(e)}")
+                continue
+        
+        return answers
+
+    def _answer_from_transcript(self, transcript: str, question: str) -> str:
+        """Answer question using transcript analysis"""
+        if not transcript:
+            return ""
+        
+        try:
+            # Split transcript into chunks if too long
+            max_length = 512
+            chunks = [transcript[i:i+max_length] for i in range(0, len(transcript), max_length)]
+            
+            best_answer = ""
+            best_score = 0
+            
+            for chunk in chunks:
+                try:
+                    result = self.text_analyzer(question=question, context=chunk)
+                    if result['score'] > best_score:
+                        best_score = result['score']
+                        best_answer = result['answer']
+                except:
+                    continue
+                    
+            return best_answer if best_score > 0.1 else ""
             
         except Exception as e:
-            return {
-                'success': False,
-                'error': f'Error inesperado: {str(e)}',
-                'url': url
-            }
+            print(f"Transcript analysis error: {str(e)}")
+            return ""
+
+    def forward(self, url: str, questions: str) -> str:
+        """Main processing function"""
+        if not url or not questions:
+            return "Error: URL and questions are required"
+        
+        # Validate URL
+        if 'youtube.com' not in url and 'youtu.be' not in url:
+            return "Error: Invalid YouTube URL"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                # Download video and audio
+                print("Downloading video...")
+                paths = self._download_video(url, temp_dir)
+                
+                if not paths["video"] and not paths["audio"]:
+                    return "Error: Could not download video. YouTube may be blocking requests or the video is unavailable."
+                
+                # Extract visual information
+                visual_answers = []
+                if paths["video"]:
+                    print("Processing video frames...")
+                    frames = self._extract_frames(paths["video"])
+                    if frames:
+                        visual_answers = self._analyze_frames_with_question(frames, questions)
+                
+                # Extract and analyze audio
+                transcript = ""
+                audio_answer = ""
+                if paths["audio"]:
+                    print("Transcribing audio...")
+                    transcript = self._transcribe_audio(paths["audio"])
+                    if transcript:
+                        audio_answer = self._answer_from_transcript(transcript, questions)
+                
+                # Combine results
+                result_parts = []
+                
+                if audio_answer:
+                    result_parts.append(f"From transcript: {audio_answer}")
+                
+                if visual_answers:
+                    unique_visual = list(set(visual_answers))
+                    result_parts.append(f"From visual analysis: {', '.join(unique_visual[:3])}")
+                
+                if transcript and not audio_answer:
+                    # Include relevant transcript snippet
+                    words = transcript.split()
+                    if len(words) > 50:
+                        transcript_snippet = ' '.join(words[:50]) + "..."
+                    else:
+                        transcript_snippet = transcript
+                    result_parts.append(f"Transcript excerpt: {transcript_snippet}")
+                
+                if not result_parts:
+                    return "Could not extract sufficient information from the video to answer the question."
+                
+                return "\n\n".join(result_parts)
+                
+            except Exception as e:
+                return f"Error processing video: {str(e)[:200]}"

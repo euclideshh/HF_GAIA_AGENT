@@ -3,7 +3,10 @@
 *.csv
 *.docx
 *.pptx
-*.txt
+*.jpg
+*.png
+*.jpeg
+*.gif
 .env
 tests/*
 rag_db/*
