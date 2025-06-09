@@ -59,7 +59,7 @@ model = InferenceClientModel(
     model_id='meta-llama/Llama-3.3-70B-Instruct',
     ###model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
     provider="hf-inference",
-    timeout = 300
+    timeout = 600
 )
 
 # CodeAgent definition
