@@ -54,7 +54,7 @@ tools = [
 
 # Model configuration
 model = InferenceClientModel(
-    max_tokens=2096,
+    max_tokens=512,
     temperature=0,
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
     #model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
@@ -67,8 +67,7 @@ gaai_agent = CodeAgent(
     model=model,
     tools = tools, 
     verbosity_level=2,
-    max_steps=20,     
-    max_new_tokens=512   
+    max_steps=20,          
     #######add_base_tools=True
 )
 
