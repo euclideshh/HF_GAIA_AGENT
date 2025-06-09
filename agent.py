@@ -67,7 +67,8 @@ gaai_agent = CodeAgent(
     model=model,
     tools = tools, 
     verbosity_level=2,
-    max_steps=20,        
+    max_steps=20,     
+    max_new_tokens=512   
     #######add_base_tools=True
 )
 
