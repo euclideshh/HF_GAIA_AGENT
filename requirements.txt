@@ -75,19 +75,19 @@ accelerate
 # AUDIO PROCESSING
 # ==============================================================================
 # Video/Audio processing
-yt-dlp>=2024.1.0
-opencv-python>=4.8.0
-whisper-openai>=20231117
+yt-dlp
+opencv-python
+whisper-openai
 ffmpeg-python>=0.2.0
 
 # AI/ML models
-torchvision>=0.15.0
-transformers>=4.35.0
-pillow>=10.0.0
+torchvision
+transformers
+pillow
 
 # Data processing
-numpy>=1.24.0
-requests>=2.31.0
+numpy
+requests
 
 # Optional: For fallback video downloading
-streamlink>=6.0.0
+streamlink
