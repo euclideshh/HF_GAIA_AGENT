@@ -54,7 +54,7 @@ tools = [
 
 # Model configuration
 model = InferenceClientModel(
-    max_tokens=512,
+    max_tokens=400,
     temperature=0,
     model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
     #model_id='Qwen/Qwen2.5-Coder-32B-Instruct',
