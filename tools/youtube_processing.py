@@ -56,6 +56,7 @@ class YouTubeVideoProcessorTool(Tool):
             model="distilbert-base-cased-distilled-squad",
             tokenizer="distilbert-base-cased-distilled-squad"
         )
+        
     def _get_random_user_agent(self):
         user_agents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -112,6 +113,19 @@ class YouTubeVideoProcessorTool(Tool):
             return random.choice(proxies) if proxies else None
         except:
             return None
+    def _setup_youtube_cookies(self) -> str:
+        """Setup YouTube cookies from HuggingFace secrets"""
+        print("_setup_youtube_cookies called")
+        if 'YOUTUBE_COOKIES' in os.environ:
+            # Create temporary cookies file
+            print("Cookies found in environment variables")
+            cookies_content = os.environ['YOUTUBE_COOKIES']            
+            # Write to temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                f.write(cookies_content)
+                return f.name
+        print("Cookies not found in environment variables")
+        return None        
 
     def _download_video(self, url: str, temp_dir: str) -> Dict[str, str]:
         """Download video and audio with anti-blocking measures"""
@@ -122,7 +136,15 @@ class YouTubeVideoProcessorTool(Tool):
         time.sleep(random.uniform(1, 3))
         
         try:
-            with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:                
+            print("Setting up YouTube cookies...")
+            cookies_file = self._setup_youtube_cookies()
+            if cookies_file:
+                self.ydl_opts['cookiefile'] = cookies_file
+                print("Using YouTube cookies from secrets")
+            else:
+                print("No YouTube cookies found in secrets")     
+                         
+            with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:                                  
                 # Extract video info first
                 info = ydl.extract_info(url, download=False)
                 title = info.get('title', 'video')
@@ -174,9 +196,13 @@ class YouTubeVideoProcessorTool(Tool):
                         audio_path = os.path.join(temp_dir, file)
                         break
                 print(f"Audio extracted: {audio_path}")
+            
+            # Clean up temporary cookies file
+            if cookies_file and os.path.exists(cookies_file):
+                os.unlink(cookies_file)
                         
         except Exception as e:
-            print(f"Trying fallback download method")
+            print(f"Trying fallback download method due to error: {str(e)}")
             # Fallback: try alternative extraction method
             return self._fallback_download(url, temp_dir)
             
